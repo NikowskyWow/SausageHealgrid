@@ -1,15 +1,98 @@
 -- [[ SAUSAGEHEALGRID CONFIG ]]
--- Nastavenia addonu podľa Sausage Addon Design System.
-
 local addonName, SHG = ...
 SHG.Config = {}
 local MainFrame
+
+local Fonts = { "Friz Quadrata TT", "Arial Narrow", "Skurri", "Morpheus" }
+local HealthModes = { "Class", "Health" }
+local NameColorModes = { "Class", "Custom" }
+local BorderStyles = { "Blizzard Tooltip", "Solid", "None" }
+
+-- Pomocná funkcia na získanie kúzla zo spellbooku
+-- Pomocná funkcia na získanie kúzla zo spellbooku rozdeleného podľa kategórií
+local function GetPlayerSpells()
+    local categories = {}
+    local numTabs = GetNumSpellTabs()
+    for t = 1, numTabs do
+        local tabName, _, offset, numSpells = GetSpellTabInfo(t)
+        local spells = {}
+        for i = offset + 1, offset + numSpells do
+            local name = GetSpellName(i, BOOKTYPE_SPELL)
+            if name and name ~= "" then
+                -- Použijeme hash na unikátne kúzla (ignorujeme ranky pre zoznam)
+                local found = false
+                for _, s in ipairs(spells) do if s == name then found = true; break end end
+                if not found then tinsert(spells, name) end
+            end
+        end
+        table.sort(spells)
+        if #spells > 0 then
+            tinsert(categories, { name = tabName, spells = spells })
+        end
+    end
+    return categories
+end
+
+local function ShowColorPicker(r, g, b, callback)
+    ColorPickerFrame.func = function()
+        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+        callback(nr, ng, nb)
+    end
+    ColorPickerFrame.hasOpacity = false
+    ColorPickerFrame.cancelFunc = function(prev) callback(prev.r, prev.g, prev.b) end
+    ColorPickerFrame:SetColorRGB(r, g, b)
+    ColorPickerFrame.previousValues = {r = r, g = g, b = b}
+    ColorPickerFrame:Hide(); ColorPickerFrame:Show()
+end
+
+local function CreateDropdown(parent, name, items, currentVal, callback, x, y, width)
+    local dd = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
+    dd:SetPoint("TOPLEFT", x, y)
+    local function OnClick(self)
+        UIDropDownMenu_SetSelectedID(dd, self:GetID(), UIDROPDOWNMENU_MENU_LEVEL)
+        UIDropDownMenu_SetText(dd, self.value)
+        callback(self.value)
+        CloseDropDownMenus()
+    end
+    local function Initialize(self, level)
+        level = level or 1
+        local info = UIDropDownMenu_CreateInfo()
+        if level == 1 then
+            -- "None" option
+            info.text = "None"; info.value = "None"; info.func = OnClick
+            UIDropDownMenu_AddButton(info, level)
+            
+            -- Categories
+            for _, cat in ipairs(items) do
+                info = UIDropDownMenu_CreateInfo()
+                info.text = cat.name; info.value = cat.name; info.hasArrow = true; info.notCheckable = true
+                UIDropDownMenu_AddButton(info, level)
+            end
+        elseif level == 2 then
+            local category = UIDROPDOWNMENU_MENU_VALUE
+            for _, cat in ipairs(items) do
+                if cat.name == category then
+                    for _, spell in ipairs(cat.spells) do
+                        info = UIDropDownMenu_CreateInfo()
+                        info.text = spell; info.value = spell; info.func = OnClick
+                        UIDropDownMenu_AddButton(info, level)
+                    end
+                    break
+                end
+            end
+        end
+    end
+    UIDropDownMenu_Initialize(dd, Initialize)
+    UIDropDownMenu_SetWidth(dd, width or 120)
+    UIDropDownMenu_SetText(dd, currentVal or "None")
+    return dd
+end
 
 function SHG.Config:Create()
     if MainFrame then return MainFrame end
     
     MainFrame = CreateFrame("Frame", "SHG_MainFrame", UIParent)
-    MainFrame:SetSize(460, 580); MainFrame:SetPoint("CENTER")
+    MainFrame:SetSize(520, 660); MainFrame:SetPoint("CENTER")
     MainFrame:SetMovable(true); MainFrame:EnableMouse(true); MainFrame:RegisterForDrag("LeftButton")
     MainFrame:SetScript("OnDragStart", MainFrame.StartMoving); MainFrame:SetScript("OnDragStop", MainFrame.StopMovingOrSizing)
     MainFrame:SetFrameStrata("HIGH")
@@ -22,132 +105,168 @@ function SHG.Config:Create()
     })
     tinsert(UISpecialFrames, "SHG_MainFrame")
 
-    -- Header
     local h = MainFrame:CreateTexture(nil, "OVERLAY")
     h:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header"); h:SetSize(300, 68); h:SetPoint("TOP", 0, 12)
-    local t = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    t:SetPoint("TOP", h, "TOP", 0, -14); t:SetText(SHG.Title .. " Config")
-    local cBtn = CreateFrame("Button", nil, MainFrame, "UIPanelCloseButton"); cBtn:SetPoint("TOPRIGHT", -8, -8)
+    local titleText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    titleText:SetPoint("TOP", h, "TOP", 0, -14); titleText:SetText(SHG.Title .. " Config")
+    CreateFrame("Button", nil, MainFrame, "UIPanelCloseButton"):SetPoint("TOPRIGHT", -8, -8)
 
-    -- Content Background
-    local c = CreateFrame("Frame", nil, MainFrame)
-    c:SetPoint("TOPLEFT", 20, -50); c:SetPoint("BOTTOMRIGHT", -20, 50)
-    c:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
-    c:SetBackdropColor(0.1, 0.1, 0.1, 0.8); c:SetBackdropBorderColor(0, 0.7, 1, 1)
+    -- Tab System
+    local tab1 = CreateFrame("Button", "SHG_MainFrameTab1", MainFrame, "CharacterFrameTabButtonTemplate")
+    tab1:SetPoint("BOTTOMLEFT", 15, -28); tab1:SetText("General"); tab1:SetID(1); _G[tab1:GetName()] = tab1
+    
+    local tab2 = CreateFrame("Button", "SHG_MainFrameTab2", MainFrame, "CharacterFrameTabButtonTemplate")
+    tab2:SetPoint("LEFT", tab1, "RIGHT", -15, 0); tab2:SetText("Display"); tab2:SetID(2); _G[tab2:GetName()] = tab2
 
-    local y = -20
-    local function AddLabel(txt, color)
-        local l = c:CreateFontString(nil, "OVERLAY", "GameFontNormal"); l:SetPoint("TOPLEFT", 15, y)
-        if color then l:SetTextColor(color.r, color.g, color.b) end
-        l:SetText(txt); y = y - 25
+    local tab3 = CreateFrame("Button", "SHG_MainFrameTab3", MainFrame, "CharacterFrameTabButtonTemplate")
+    tab3:SetPoint("LEFT", tab2, "RIGHT", -15, 0); tab3:SetText("Spells & Binds"); tab3:SetID(3); _G[tab3:GetName()] = tab3
+    
+    local panels = {}
+    for i = 1, 3 do
+        panels[i] = CreateFrame("Frame", nil, MainFrame)
+        panels[i]:SetPoint("TOPLEFT", 15, -45); panels[i]:SetPoint("BOTTOMRIGHT", -15, 45)
+        panels[i]:Hide()
     end
 
-    -- Mouse Bindings Section
-    AddLabel("|cFFFFD100Mouse Bindings (Spell Name)|r")
-    local binds = {
-        {"Left Click", "type1"},
-        {"Right Click", "type2"},
-        {"Middle Click", "type3"},
-        {"Shift + Left", "shift-type1"},
-        {"Ctrl + Left", "ctrl-type1"}
-    }
-    
-    for _, b in ipairs(binds) do
-        local l = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); l:SetPoint("TOPLEFT", 25, y); l:SetText(b[1])
-        local eb = CreateFrame("EditBox", nil, c, "InputBoxTemplate")
-        eb:SetSize(180, 20); eb:SetPoint("TOPLEFT", 140, y + 4); eb:SetAutoFocus(false)
-        -- Odstránime "spell:" prefix pre zobrazenie užívateľovi
-        local val = SHG.DB.bindings[b[2]] or ""
-        eb:SetText(val:gsub("^spell:", ""))
-        eb:SetScript("OnTextChanged", function(self) 
-            local txt = self:GetText()
-            if txt ~= "" then SHG.DB.bindings[b[2]] = "spell:" .. txt else SHG.DB.bindings[b[2]] = nil end
+    PanelTemplates_SetNumTabs(MainFrame, 3); PanelTemplates_SetTab(MainFrame, 1); panels[1]:Show()
+
+    local function SwitchTab(id)
+        PanelTemplates_SetTab(MainFrame, id)
+        for i, p in ipairs(panels) do if i == id then p:Show() else p:Hide() end end
+    end
+
+    tab1:SetScript("OnClick", function() SwitchTab(1) end)
+    tab2:SetScript("OnClick", function() SwitchTab(2) end)
+    tab3:SetScript("OnClick", function() SwitchTab(3) end)
+
+    -- PANEL 1: General
+    local p1 = panels[1]; local y = -10
+    local function AddCB1(txt, key)
+        local cb = CreateFrame("CheckButton", nil, p1, "UICheckButtonTemplate")
+        cb:SetPoint("TOPLEFT", 15, y); cb:SetChecked(SHG.DB[key])
+        cb:SetScript("OnClick", function(self) 
+            SHG.DB[key] = self:GetChecked()
+            if key == "locked" and SHG.Frames then SHG.Frames:UpdateAnchor() end
         end)
-        y = y - 30
-    end
-
-    y = y - 10
-    AddLabel("|cFFFFD100General Options|r")
-    
-    local function AddCB(txt, key)
-        local cb = CreateFrame("CheckButton", nil, c, "UICheckButtonTemplate")
-        cb:SetPoint("TOPLEFT", 20, y); cb:SetChecked(SHG.DB[key])
-        cb:SetScript("OnClick", function(self) SHG.DB[key] = self:GetChecked() end)
-        local l = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); l:SetPoint("LEFT", cb, "RIGHT", 5, 0); l:SetText(txt)
+        local l = p1:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"); l:SetPoint("LEFT", cb, "RIGHT", 5, 0); l:SetText(txt)
         y = y - 32
     end
-    
-    AddCB("Show Mana Bars", "showMana")
-    AddCB("Show Incoming Heals", "showIncomingHeals")
-    AddCB("Show Target Highlight", "showTargetHighlight")
+    AddCB1("Lock Frames (Hide Anchor)", "locked")
+    AddCB1("Show Mana Bars", "showMana")
+    AddCB1("Show Incoming Heals", "showIncomingHeals")
+    AddCB1("Show Target Highlight", "showTargetHighlight")
+    AddCB1("Show Dispels (Debuffs)", "showDispels")
 
-    y = y - 10
-    AddLabel("|cFFFFD100Grid Dimensions|r")
-    
-    local function AddSlider(txt, key, minVal, maxVal, step)
-        local slider = CreateFrame("Slider", "SHG_Slider_"..key, c, "OptionsSliderTemplate")
-        slider:SetPoint("TOPLEFT", 25, y)
-        slider:SetWidth(200)
-        slider:SetMinMaxValues(minVal, maxVal)
-        slider:SetValueStep(step)
-        
-        local val = SHG.DB[key] or minVal
-        slider:SetValue(val)
-        
-        _G[slider:GetName().."Low"]:SetText(minVal)
-        _G[slider:GetName().."High"]:SetText(maxVal)
-        _G[slider:GetName().."Text"]:SetText(txt .. ": " .. val)
-        
-        slider:SetScript("OnValueChanged", function(self, value)
-            SHG.DB[key] = value
-            _G[self:GetName().."Text"]:SetText(txt .. ": " .. value)
-        end)
+    -- PANEL 2: Display
+    local p2 = panels[2]; y = -10
+    local function AddSlider2(txt, key, minVal, maxVal, step)
+        local slider = CreateFrame("Slider", "SHG_Slider_"..key, p2, "OptionsSliderTemplate")
+        slider:SetPoint("TOPLEFT", 15, y); slider:SetWidth(180); slider:SetMinMaxValues(minVal, maxVal); slider:SetValueStep(step)
+        slider:SetValue(SHG.DB[key] or minVal)
+        _G[slider:GetName().."Text"]:SetText(txt .. ": " .. string.format("%.1f", SHG.DB[key] or minVal))
+        slider:SetScript("OnValueChanged", function(self, value) SHG.DB[key] = value; _G[self:GetName().."Text"]:SetText(txt .. ": " .. string.format("%.1f", value)) end)
         y = y - 45
     end
+    AddSlider2("Frame Width", "frameWidth", 40, 150, 1)
+    AddSlider2("Frame Height", "frameHeight", 20, 100, 1)
+    AddSlider2("Column Spacing", "columnSpacing", 0, 20, 1)
+    AddSlider2("Row Offset (Y)", "yOffset", -30, 0, 1)
     
-    AddSlider("Frame Width", "frameWidth", 40, 150, 1)
-    AddSlider("Frame Height", "frameHeight", 20, 100, 1)
+    y = y - 10
+    local lFont = p2:CreateFontString(nil, "OVERLAY", "GameFontNormal"); lFont:SetPoint("TOPLEFT", 15, y); lFont:SetText("Font:")
+    CreateDropdown(p2, "SHG_DD_F", Fonts, SHG.DB.fontName, function(v) SHG.DB.fontName = v end, 60, y+5, 120); y = y - 40
+    
+    local lBorder = p2:CreateFontString(nil, "OVERLAY", "GameFontNormal"); lBorder:SetPoint("TOPLEFT", 15, y); lBorder:SetText("Border:")
+    CreateDropdown(p2, "SHG_DD_B", BorderStyles, SHG.DB.borderStyle, function(v) SHG.DB.borderStyle = v end, 100, y+5, 120); y = y - 40
 
-    -- Footer Buttons
+    -- PANEL 3: Spells & Binds
+    local p3 = panels[3]; y = -10
+    local spells = GetPlayerSpells()
+    local selectedMouseButton = 1
+    local editingProfile = GetActiveTalentGroup() or 1
+
+    local profHeader = p3:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    profHeader:SetPoint("TOPLEFT", 10, y); profHeader:SetText("Select Profile to Edit:")
+    y = y - 25
+
+    local pButtons = {}
+    for i = 1, 2 do
+        local btn = CreateFrame("Button", nil, p3, "UIPanelButtonTemplate")
+        btn:SetSize(140, 24); btn:SetPoint("TOPLEFT", 10 + (i-1)*150, y)
+        btn:SetScript("OnClick", function() editingProfile = i; SHG.Config:UpdateSpellPanel() end)
+        pButtons[i] = btn
+    end
+    y = y - 35
+
+    local buttonLabels = { "Left Click", "Right Click", "Middle Click", "Mouse 4", "Mouse 5" }
+    local mButtons = {}
+    for i = 1, 5 do
+        local btn = CreateFrame("Button", nil, p3, "UIPanelButtonTemplate")
+        btn:SetSize(90, 25); btn:SetText(buttonLabels[i])
+        btn:SetPoint("TOPLEFT", 10 + (i-1)*95, y)
+        btn:SetScript("OnClick", function() selectedMouseButton = i; SHG.Config:UpdateSpellPanel() end)
+        mButtons[i] = btn
+    end
+    y = y - 45
+
+    local spellRows = CreateFrame("Frame", nil, p3)
+    spellRows:SetPoint("TOPLEFT", 0, y); spellRows:SetPoint("BOTTOMRIGHT", 0, 0)
+
+    function SHG.Config:UpdateSpellPanel()
+        -- Update Profile Buttons
+        local activeSpec = GetActiveTalentGroup() or 1
+        for i = 1, 2 do
+            local p = SHG.DB.profiles[i]
+            local name = p and p.name or ("Spec "..i)
+            local txt = name .. (i == activeSpec and " |cFF00FF00(ACTIVE)|r" or "")
+            pButtons[i]:SetText(txt)
+            if i == editingProfile then pButtons[i]:LockHighlight() else pButtons[i]:UnlockHighlight() end
+        end
+
+        -- Update Mouse Buttons
+        for i, b in ipairs(mButtons) do if i == selectedMouseButton then b:LockHighlight() else b:UnlockHighlight() end end
+        
+        -- Rows
+        self.rows = self.rows or {}
+        local mods = { "", "shift-", "ctrl-", "alt-", "shift-ctrl-", "shift-alt-", "ctrl-alt-", "shift-ctrl-alt-" }
+        local modLabels = { "None", "Shift", "Ctrl", "Alt", "Shift+Ctrl", "Shift+Alt", "Ctrl+Alt", "Shift+Ctrl+Alt" }
+        
+        local p = SHG.DB.profiles[editingProfile]
+        if not p then return end
+
+        for i, mod in ipairs(mods) do
+            local row = self.rows[i]
+            if not row then
+                row = CreateFrame("Frame", nil, spellRows)
+                row:SetSize(480, 40); row:SetPoint("TOPLEFT", 10, -(i-1)*40) -- Increased row height to 40
+                local l = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                l:SetPoint("LEFT", 5, 0); l:SetWidth(110); l:SetJustifyH("LEFT")
+                row.label = l
+                -- We create the dropdown only once per row
+                row.dd = CreateDropdown(row, "SHG_SpellDD_"..i, spells, "None", function(v)
+                    local key = row.currentKey
+                    if v == "None" then p.bindings[key] = nil else p.bindings[key] = "spell:" .. v end
+                end, 120, 12, 220) -- Positioned inside the row
+                self.rows[i] = row
+            end
+            row.label:SetText(modLabels[i])
+            local key = mod .. "type" .. selectedMouseButton
+            row.currentKey = key
+            local currentVal = p.bindings[key] and p.bindings[key]:gsub("^spell:", "") or "None"
+            UIDropDownMenu_SetText(row.dd, currentVal)
+            row:Show()
+        end
+    end
+
+    SHG.Config:UpdateSpellPanel()
+
+    -- Footer
     local save = CreateFrame("Button", nil, MainFrame, "UIPanelButtonTemplate")
     save:SetSize(130, 30); save:SetPoint("BOTTOMLEFT", 25, 15); save:SetText("Save & Reload")
     save:SetScript("OnClick", function() ReloadUI() end)
 
-    local update = CreateFrame("Button", nil, MainFrame, "UIPanelButtonTemplate")
-    update:SetSize(110, 25); update:SetPoint("BOTTOMRIGHT", -25, 15); update:SetText("Check Updates")
-    update:SetScript("OnClick", function() SHG.Config:ShowGitFrame() end)
-
-    -- Branding
-    local brand = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    brand:SetPoint("BOTTOM", 0, 15); brand:SetText("by Sausage Party")
-
     MainFrame:Hide()
     return MainFrame
-end
-
-function SHG.Config:ShowGitFrame()
-    if not self.GitFrame then
-        local G = CreateFrame("Frame", "SHG_GitFrame", UIParent)
-        G:SetSize(320, 130); G:SetPoint("CENTER"); G:SetFrameStrata("DIALOG")
-        G:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background", edgeFile="Interface\\DialogFrame\\UI-DialogBox-Border", tile=true, tileSize=32, edgeSize=32, insets={left=11,right=12,top=12,bottom=11}})
-        tinsert(UISpecialFrames, "SHG_GitFrame")
-        local h = G:CreateTexture(nil, "OVERLAY"); h:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header"); h:SetSize(250, 64); h:SetPoint("TOP", 0, 12)
-        local t = G:CreateFontString(nil, "OVERLAY", "GameFontNormal"); t:SetPoint("TOP", h, "TOP", 0, -14); t:SetText("UPDATE LINK")
-        CreateFrame("Button", nil, G, "UIPanelCloseButton"):SetPoint("TOPRIGHT", -8, -8)
-        local d = G:CreateFontString(nil, "OVERLAY", "GameFontNormal"); d:SetPoint("TOP", 0, -35); d:SetText("Press Ctrl+C to copy GitHub link:")
-        local eb = CreateFrame("EditBox", nil, G, "InputBoxTemplate"); eb:SetSize(260, 20); eb:SetPoint("TOP", d, "BOTTOM", 0, -15); eb:SetAutoFocus(true)
-        local L = "https://github.com/NikowskyWow/SausageHealgrid/releases"
-        eb:SetScript("OnTextChanged", function(s) if s:GetText() ~= L then s:SetText(L); s:HighlightText() end end)
-        eb:SetScript("OnEscapePressed", function(s) s:ClearFocus(); G:Hide() end)
-        G:SetScript("OnShow", function() eb:SetText(L); eb:SetFocus(); eb:HighlightText() end)
-        self.GitFrame = G
-    end
-    self.GitFrame:Show()
 end
 
 function SHG.Config:Toggle()
