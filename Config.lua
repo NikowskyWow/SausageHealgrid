@@ -30,6 +30,8 @@ local function GetPlayerSpells()
             tinsert(categories, { name = tabName, spells = spells })
         end
     end
+    -- Pridáme Radials ako špeciálnu kategóriu
+    tinsert(categories, { name = "Radials", spells = { "Radial Menu 1" } })
     return categories
 end
 
@@ -209,6 +211,11 @@ function SHG.Config:Create()
     end
     y = y - 45
 
+    -- Configure Radial Button
+    local confRadial = CreateFrame("Button", nil, p3, "UIPanelButtonTemplate")
+    confRadial:SetSize(140, 25); confRadial:SetPoint("TOPLEFT", 350, -10); confRadial:SetText("Setup Radial Menu")
+    confRadial:SetScript("OnClick", function() SHG.Config:ShowRadialConfig() end)
+
     local spellRows = CreateFrame("Frame", nil, p3)
     spellRows:SetPoint("TOPLEFT", 0, y); spellRows:SetPoint("BOTTOMRIGHT", 0, 0)
 
@@ -245,17 +252,62 @@ function SHG.Config:Create()
                 -- We create the dropdown only once per row
                 row.dd = CreateDropdown(row, "SHG_SpellDD_"..i, spells, "None", function(v)
                     local key = row.currentKey
-                    if v == "None" then p.bindings[key] = nil else p.bindings[key] = "spell:" .. v end
+                    if v == "None" then p.bindings[key] = nil 
+                    elseif v:find("Radial Menu") then
+                        p.bindings[key] = "radial:" .. v:match("%d+")
+                    else
+                        p.bindings[key] = "spell:" .. v 
+                    end
                 end, 120, 12, 220) -- Positioned inside the row
                 self.rows[i] = row
             end
             row.label:SetText(modLabels[i])
             local key = mod .. "type" .. selectedMouseButton
             row.currentKey = key
-            local currentVal = p.bindings[key] and p.bindings[key]:gsub("^spell:", "") or "None"
+            local rawVal = p.bindings[key] or ""
+            local currentVal = "None"
+            if rawVal:find("^spell:") then currentVal = rawVal:gsub("^spell:", "")
+            elseif rawVal:find("^radial:") then currentVal = "Radial Menu " .. rawVal:gsub("^radial:", "") end
+            
             UIDropDownMenu_SetText(row.dd, currentVal)
             row:Show()
         end
+    end
+
+    function SHG.Config:ShowRadialConfig()
+        if self.RadialPop then self.RadialPop:Show(); return end
+        
+        local pop = CreateFrame("Frame", "SHG_RadialConfig", MainFrame)
+        pop:SetSize(350, 480); pop:SetPoint("CENTER")
+        pop:SetFrameStrata("DIALOG")
+        pop:SetToplevel(true) -- Aby sa okno dalo vytiahnuť do popredia
+        pop:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true, tileSize = 32, edgeSize = 32,
+            insets = { left = 11, right = 12, top = 12, bottom = 11 }
+        })
+        self.RadialPop = pop
+        
+        local scroll = CreateFrame("ScrollFrame", "SHG_RadialScrollFrame", pop, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 15, -45); scroll:SetPoint("BOTTOMRIGHT", -35, 45)
+        local content = CreateFrame("Frame", nil, scroll)
+        content:SetSize(300, 400); scroll:SetScrollChild(content)
+        
+        local l = pop:CreateFontString(nil, "OVERLAY", "GameFontNormal"); l:SetPoint("TOP", 0, -15); l:SetText("Configure Radial Menu 1")
+        CreateFrame("Button", nil, pop, "UIPanelCloseButton"):SetPoint("TOPRIGHT", -8, -8)
+        
+        local spells = GetPlayerSpells()
+        for i = 1, 8 do
+            local sl = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            sl:SetPoint("TOPLEFT", 10, -(i-1)*45); sl:SetText("Slot " .. i .. ":")
+            local data = SHG.DB.radialMenus[1][i]
+            CreateDropdown(content, "SHG_RadialSlotDD_"..i, spells, data.spell or "None", function(v)
+                SHG.DB.radialMenus[1][i].spell = v
+            end, 60, -(i-1)*45 + 5, 180)
+        end
+        
+        pop:Show()
     end
 
     SHG.Config:UpdateSpellPanel()

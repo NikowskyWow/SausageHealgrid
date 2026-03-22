@@ -141,8 +141,14 @@ function SHG.Frames:InitHeader()
         local prefix = mod and mod ~= "" and mod .. "-" or ""
         local actType, actVal = action:match("^(.-):(.+)$")
         if actType and actVal then
-            h:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
-            h:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+            if actType == "radial" then
+                -- Použijeme špeciálnu registráciu pre SecureHandler
+                SHG.Radial:RegisterButton(h)
+                h:SetAttribute(prefix .. "radialID" .. btn:match("%d+"), actVal)
+            else
+                h:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
+                h:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+            end
         end
     end
 
@@ -166,8 +172,13 @@ function SHG.Frames:UpdateRoster()
             local prefix = mod and mod ~= "" and mod .. "-" or ""
             local actType, actVal = action:match("^(.-):(.+)$")
             if actType and actVal then
-                self.Header:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
-                self.Header:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+                if actType == "radial" then
+                    self.Header:SetAttribute(prefix .. "type" .. btn:match("%d+"), "macro")
+                    self.Header:SetAttribute(prefix .. "macrotext" .. btn:match("%d+"), "/run SHG.Radial:Show(GetMouseFocus():GetAttribute('unit'), "..actVal..")")
+                else
+                    self.Header:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
+                    self.Header:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+                end
             end
         end
     end
@@ -259,7 +270,7 @@ function SHG.Frames:NewUnitFrame(f)
     end)
     
     -- Aplikovanie bindings priamo na frame, aby click-casting fungoval 100%
-    f:RegisterForClicks("AnyUp")
+    f:RegisterForClicks("AnyDown", "AnyUp") -- Registrujeme oba eventy pre Hold&Release
     local p = SHG:GetProfile()
     for key, action in pairs(p.bindings) do
         local mod, btn = key:match("^(.-)%-?(type%d+)$")
@@ -267,8 +278,13 @@ function SHG.Frames:NewUnitFrame(f)
         local prefix = mod and mod ~= "" and mod .. "-" or ""
         local actType, actVal = action:match("^(.-):(.+)$")
         if btn and actType and actVal then
-            f:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
-            f:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+            if actType == "radial" then
+                SHG.Radial:RegisterButton(f)
+                f:SetAttribute(prefix .. "radialID" .. btn:match("%d+"), actVal)
+            else
+                f:SetAttribute(prefix .. "type" .. btn:match("%d+"), actType)
+                f:SetAttribute(prefix .. actType .. btn:match("%d+"), actVal)
+            end
         end
     end
     

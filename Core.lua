@@ -2,6 +2,7 @@
 -- Hlavná logika addonu, inicializácia a správa eventov.
 
 local addonName, SHG = ...
+_G["SHG"] = SHG -- Expose globally for macros and other addons
 
 -- [[ VERZIA A AUTOR ]]
 SHG.Title = "|cFFFFD100Sausage|rHealgrid"
@@ -31,6 +32,12 @@ local defaults = {
         profiles = {
             [1] = { name = "Primary", bindings = {} },
             [2] = { name = "Secondary", bindings = {} },
+        },
+        radialMenus = {
+            [1] = { -- Menu 1 (8 slots)
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+            }
         }
     }
 }
