@@ -1,0 +1,40 @@
+------------------------------------------------------------------------
+r101 | mitch0 | 2009-12-09 20:34:12 +0000 (Wed, 09 Dec 2009) | 1 line
+Changed paths:
+   A /tags/v3.5.5 (from /trunk:100)
+
+Tagging as v3.5.5
+------------------------------------------------------------------------
+r100 | mitch0 | 2009-12-08 14:49:46 +0000 (Tue, 08 Dec 2009) | 1 line
+Changed paths:
+   M /trunk/.pkgmeta
+   M /trunk/LibRangeCheck-2.0.toc
+   D /trunk/LibStub.lua
+
+pull in LibStub via .pkgmeta, minor version bump, toc bump for 3.3
+------------------------------------------------------------------------
+r98 | mitch0 | 2009-11-13 00:24:01 +0000 (Fri, 13 Nov 2009) | 1 line
+Changed paths:
+   M /trunk/LibRangeCheck-2.0/LibRangeCheck-2.0.lua
+   M /trunk/LibRangeCheck-2.0.toc
+
+added delayed init, removed debug prints
+------------------------------------------------------------------------
+r97 | mitch0 | 2009-11-12 09:33:35 +0000 (Thu, 12 Nov 2009) | 1 line
+Changed paths:
+   M /trunk/LibRangeCheck-2.0/LibRangeCheck-2.0.lua
+
+added some debug prints, remove self-inspect thing, it didn't seem to work
+------------------------------------------------------------------------
+r96 | mitch0 | 2009-11-11 14:00:41 +0000 (Wed, 11 Nov 2009) | 1 line
+Changed paths:
+   M /trunk/LibRangeCheck-2.0/LibRangeCheck-2.0.lua
+
+added some hacks to fix talent update stuff [drycode]
+------------------------------------------------------------------------
+r95 | mitch0 | 2009-11-11 11:30:35 +0000 (Wed, 11 Nov 2009) | 1 line
+Changed paths:
+   M /trunk/LibRangeCheck-2.0/LibRangeCheck-2.0.lua
+
+get rid of ipairs
+------------------------------------------------------------------------

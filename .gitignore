@@ -1,0 +1,20 @@
+# Standard WoW Addon ignore
+.vscode/
+.DS_Store
+.idea/
+*.wowsln
+*.wowproj
+*.user
+*.suo
+*.bak
+*.tmp
+*.old
+Interface/
+WTF/
+Screenshots/
+.cursor/
+.gemini/
+build/
+dist/
+release/
+*.zip

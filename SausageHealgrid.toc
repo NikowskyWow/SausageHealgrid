@@ -1,0 +1,19 @@
+## Interface: 30300
+## Title: |cFFFFD100Sausage|rHealgrid
+## Notes: A lightweight grid-based unit frame and click-casting addon for WotLK.
+## Author: Sausage Party / Kokotiar
+## Version: SAUSAGE_VERSION
+## SavedVariables: SausageHealgridDB
+## SavedVariablesPerCharacter: SausageHealgridCharDB
+
+# Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibHealComm-4.0\LibHealComm-4.0.xml
+Libs\LibRangeCheck-2.0\LibRangeCheck-2.0\LibRangeCheck-2.0.lua
+
+# Core Files
+Utils.lua
+Core.lua
+Frames.lua
+Config.lua
