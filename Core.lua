@@ -5,7 +5,7 @@ local addonName, SHG = ...
 _G["SHG"] = SHG -- Expose globally for macros and other addons
 
 -- [[ VERZIA A AUTOR ]]
-SHG.Title = "|cFFFFD100Sausage|rHealgrid"
+SHG.Title = "|cffff8800Sausage|rHealgrid"
 SHG.Author = "Sausage Party / Kokotiar"
 SHG.Version = "SAUSAGE_VERSION"
 
@@ -118,13 +118,18 @@ function SHG:CreateMinimapButton()
     SHG.DB.minimapPos = SHG.DB.minimapPos or 220
     
     local btn = CreateFrame("Button", "SHG_MinimapButton", Minimap)
-    btn:SetSize(32, 32); btn:SetFrameStrata("MEDIUM"); btn:SetFrameLevel(8)
+    btn:SetSize(31, 31); btn:SetFrameStrata("MEDIUM"); btn:SetFrameLevel(8)
     
     local icon = btn:CreateTexture(nil, "BACKGROUND")
-    icon:SetTexture("Interface\\Icons\\Spell_Holy_Restoration"); icon:SetSize(21, 21); icon:SetPoint("CENTER")
+    icon:SetTexture("Interface\\Icons\\Spell_Holy_Restoration"); icon:SetSize(20, 20); icon:SetPoint("CENTER")
     
     local border = btn:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); border:SetSize(54, 54); border:SetPoint("TOPLEFT")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); border:SetSize(52, 52); border:SetPoint("TOPLEFT")
+    border:SetVertexColor(1, 0.6, 0) -- Sausage Party Orange
+    
+    local badge = btn:CreateTexture(nil, "OVERLAY")
+    badge:SetTexture("Interface\\Icons\\Inv_Misc_Food_53")
+    badge:SetSize(12, 12); badge:SetPoint("BOTTOMRIGHT", -2, 2)
     
     btn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -166,6 +171,7 @@ function SHG:CreateMinimapButton()
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine(SHG.Title, 1, 1, 1)
+        GameTooltip:AddLine("|cffff8800Sausage Party Member|r")
         GameTooltip:AddLine("Left Click: Toggle Config", 1, 0.8, 0)
         GameTooltip:AddLine("Right Click: Toggle Test Mode", 1, 0.8, 0)
         GameTooltip:Show()
@@ -194,5 +200,5 @@ function Core:Initialize()
         end
     end
 
-    print(SHG.Title .. " version " .. SHG.Version .. " loaded. Type /shg for config.")
+    print(SHG.Title .. " |cff00ff00v" .. SHG.Version .. "|r loaded. [Sausage Party Edition]")
 end

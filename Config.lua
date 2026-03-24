@@ -100,11 +100,13 @@ function SHG.Config:Create()
     MainFrame:SetFrameStrata("HIGH")
     
     MainFrame:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
+    MainFrame:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
+    MainFrame:SetBackdropBorderColor(1, 0.6, 0, 1) -- Sausage Party Orange
     tinsert(UISpecialFrames, "SHG_MainFrame")
 
     local h = MainFrame:CreateTexture(nil, "OVERLAY")
