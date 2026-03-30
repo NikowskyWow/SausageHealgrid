@@ -8,11 +8,17 @@ SHG.Utils = {}
 SHG.VERSION = "SAUSAGE_VERSION"
 
 -- Získanie farby classy podľa jednotky (unit)
-function SHG.Utils.GetClassColor(unit)
-    local _, class = UnitClass(unit)
+function SHG.Utils.GetClassColor(unit, classOverride)
+    local class = classOverride
+    if not class and unit then
+        _, class = UnitClass(unit)
+    end
+    
     if class then
         local color = RAID_CLASS_COLORS[class]
-        return color.r, color.g, color.b
+        if color then
+            return color.r, color.g, color.b
+        end
     end
     return 0.5, 0.5, 0.5 -- Defaultná šedá
 end

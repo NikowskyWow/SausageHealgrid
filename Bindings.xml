@@ -1,0 +1,5 @@
+<Bindings>
+    <Binding name="SHG_RADIAL_1" header="SAUSAGEHEALGRID" />
+    <Binding name="SHG_RADIAL_2" header="SAUSAGEHEALGRID" />
+    <Binding name="SHG_RADIAL_3" header="SAUSAGEHEALGRID" />
+</Bindings>

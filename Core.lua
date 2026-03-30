@@ -14,21 +14,53 @@ local defaults = {
     profile = {
         gridScale = 1.0,
         frameWidth = 80,
-        frameHeight = 45,
         showMana = true,
+        showRage = true,
+        showEnergy = true,
+        showRunicPower = true,
         showIncomingHeals = true,
         showRangeAlpha = true,
         showDispels = true,
         minimapPos = 220,
         locked = false,
-        healthMode = "Class",
+        anchorX = 0,
+        anchorY = 100,
+        showInSolo = true,
+        showInParty = true,
+        showInRaid = true,
+        frameColorMode = "Class",
+        frameCustomColor = {r=0, g=1, b=0}, -- Full HP color for Custom mode
+        frameCustomColorLow = {r=1, g=0, b=0}, -- Low HP color for Custom mode
+        missingHpColor = {r=0.1, g=0.1, b=0.1},
+        hpTextMode = "None",
+        fullHpFade = false,
+        fullHpThreshold = 95,
+        fadeAlpha = 0.3,
+        aggroFade = false,
+        aggroHighlight = true,
         nameColorMode = "Class",
         nameColor = {r=1, g=1, b=1},
+        nameFontSize = 10,
         fontName = "Friz Quadrata TT",
         borderStyle = "Blizzard Tooltip",
         columnSpacing = 6,
         xOffset = 0,
         yOffset = -6,
+        maxColumns = 8,
+        unitsPerColumn = 5,
+        trackedBuffs = {
+            ["PRIEST"] = { [1] = 13908, [2] = 17, [3] = 33076, [4] = 48068 }, -- Renew, Shield, PoM, Flash Heal HoT
+            ["PALADIN"] = { [1] = 53563, [2] = 53601 }, -- Beacon, Sacred Shield
+            ["DRUID"] = { [1] = 774, [2] = 8936, [3] = 48438, [4] = 33763 }, -- Rejuv, Regrowth, Wild Growth, Lifebloom
+            ["SHAMAN"] = { [1] = 974, [2] = 61295, [3] = 52000 }, -- Earth Shield, Riptide, Earthliving
+        },
+        trackedDebuffs = {
+            [1] = "Weakened Soul",
+            [2] = "Forbearance",
+            [3] = "Sated",
+            [4] = "Exhaustion"
+        },
+        priorityUnits = {}, -- List of names to highlight
         profiles = {
             [1] = { name = "Primary", bindings = {} },
             [2] = { name = "Secondary", bindings = {} },
@@ -37,8 +69,17 @@ local defaults = {
             [1] = { -- Menu 1 (8 slots)
                 { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
                 { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+            },
+            [2] = { -- Menu 2
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+            },
+            [3] = { -- Menu 3
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
+                { spell = "None" }, { spell = "None" }, { spell = "None" }, { spell = "None" },
             }
-        }
+        },
+        layoutMode = "Column",
     }
 }
 
@@ -69,6 +110,28 @@ function SHG:GetProfile()
     -- Automatické premenovanie podľa aktuálnych talentov
     SHG.DB.profiles[spec].name = GetSpecName()
     return SHG.DB.profiles[spec]
+end
+
+-- Získanie vizuálneho profilu (Raid / Party)
+function SHG:GetVisuals()
+    local mode = "Party"
+    if SHG.Frames and SHG.Frames.testMode == 2 then mode = "Raid"
+    elseif GetNumRaidMembers() > 0 then mode = "Raid" end
+    
+    if not SHG.DB.visualProfiles then
+        SHG.DB.visualProfiles = { Party = {}, Raid = {} }
+        local keys = {"gridScale", "frameWidth", "frameHeight", "columnSpacing", "yOffset", "nameFontSize", "fullHpThreshold", "fadeAlpha", "maxColumns", "unitsPerColumn"}
+        for _, k in ipairs(keys) do
+            SHG.DB.visualProfiles.Party[k] = SHG.DB[k]
+            SHG.DB.visualProfiles.Raid[k] = SHG.DB[k]
+        end
+    end
+    -- Fallback pre chýbajúce hodnoty
+    local keys = {"gridScale", "frameWidth", "frameHeight", "columnSpacing", "yOffset", "nameFontSize", "fullHpThreshold", "fadeAlpha", "maxColumns", "unitsPerColumn"}
+    for _, k in ipairs(keys) do
+        if SHG.DB.visualProfiles[mode][k] == nil then SHG.DB.visualProfiles[mode][k] = SHG.DB[k] or defaults.profile[k] end
+    end
+    return SHG.DB.visualProfiles[mode]
 end
 
 -- Event handler
@@ -138,7 +201,7 @@ function SHG:CreateMinimapButton()
             SHG.Config:Toggle()
         elseif button == "RightButton" then
             if SHG.Frames then
-                SHG.Frames.testMode = not SHG.Frames.testMode
+                SHG.Frames.testMode = ((SHG.Frames.testMode or 0) + 1) % 3
                 SHG.Frames:ToggleTestMode(SHG.Frames.testMode)
             end
         end
@@ -192,11 +255,21 @@ function Core:Initialize()
             SHG.Config:Toggle()
         elseif msg == "test" then
             if SHG.Frames then
-                SHG.Frames.testMode = not SHG.Frames.testMode
+                SHG.Frames.testMode = ((SHG.Frames.testMode or 0) + 1) % 3
                 SHG.Frames:ToggleTestMode(SHG.Frames.testMode)
             end
+        elseif msg == "radial" then
+            if SHG_RadialMenu then
+                SHG_RadialMenu:SetAttribute("hoveredUnit", "player")
+                SHG_RadialMenu:SetAttribute("activeUnit", "player")
+                SHG_RadialMenu:SetAttribute("activeRadialID", "1")
+                SHG_RadialMenu:Show()
+                print(SHG.Title .. ": Radial Debug - Forced Show on 'player'")
+            else
+                print(SHG.Title .. ": Radial Debug - SHG_RadialMenu not found!")
+            end
         else
-            print(SHG.Title .. ": Use /shg config or /shg test.")
+            print(SHG.Title .. ": Use /shg config, /shg test or /shg radial.")
         end
     end
 
